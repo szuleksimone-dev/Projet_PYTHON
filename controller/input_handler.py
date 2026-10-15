@@ -3,7 +3,10 @@ import pygame
 
 MAPPING = {
     pygame.K_UP:     "accelerate",
+    pygame.K_DOWN:   "reverse",
+    pygame.K_SPACE:  "brake",
 }
+"""On associe deux touches vers des noms d'action puis les noms d'action vers les méthodes implémentées dans car.py """
 
 
 class InputHandler:

@@ -1,7 +1,7 @@
 import pygame
 import math
 from constants import (
-    CAR_ACCELERATION, CAR_WIDTH, CAR_HEIGHT, TILE_SIZE
+    CAR_ACCELERATION, CAR_WIDTH, CAR_HEIGHT, TILE_SIZE, CAR_MAX_REVERSE_SPEED, CAR_BRAKE
 )
 
 
@@ -20,8 +20,13 @@ class Car:
     def update_position(self) -> None:
         self.y += self.speed
 
-    def marche_arriere(self) -> None:
-        self.y -= self.speed
+    def reverse(self) -> None:
+        self.speed = max(-CAR_MAX_REVERSE_SPEED, self.speed - CAR_ACCELERATION)
+        """Nouvelle methode implémentée : on utilise un max() pour que la voiture ne recule pas de plus en plus vite à l'infini"""
+    
+    def brake(self) -> None:
+        self.speed = max(0.0, self.speed - CAR_BRAKE)
+        """Nouvelle methode implémentée : on utilise un max() pour que la voiture ne recule pas  à l'infini et s'arrête bien"""
 
     def build_sprite(self) -> pygame.Surface:
         surf = pygame.Surface((CAR_WIDTH, CAR_HEIGHT), pygame.SRCALPHA)
