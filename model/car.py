@@ -20,6 +20,9 @@ class Car:
     def update_position(self) -> None:
         self.y += self.speed
 
+    def marche_arriere(self) -> None:
+        self.y -= self.speed
+
     def build_sprite(self) -> pygame.Surface:
         surf = pygame.Surface((CAR_WIDTH, CAR_HEIGHT), pygame.SRCALPHA)
         pygame.draw.rect(surf, (255, 0, 0), (0, 0, CAR_WIDTH,
