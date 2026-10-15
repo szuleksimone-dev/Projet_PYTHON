@@ -17,3 +17,7 @@ Jeu de course en Python avec pygame.
 ## Répartition du travail et planning
 
 (à compléter)
+
+## Test GitHub
+
+Modification effectuée depuis VS Code.
