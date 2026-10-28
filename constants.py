@@ -16,6 +16,7 @@ CAR_MAX_REVERSE_SPEED = 2.0
 class GameState:
     MENU = "menu"
     RACING = "racing"
+    CIRCUIT_SELECTION="circuit_selection"
 
 
 # --- Couleurs UI ---
