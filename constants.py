@@ -6,11 +6,13 @@ TILE_SIZE = 64
 GRID_COLS = 16
 GRID_ROWS = 12
 
-CAR_ACCELERATION = 0.05
-CAR_WIDTH = 30
-CAR_HEIGHT = 50
-CAR_BRAKE = 0.1           
+CAR_ACCELERATION = 0.08
+CAR_WIDTH = 50
+CAR_HEIGHT = 30
+CAR_BRAKE = 0.08      
 CAR_MAX_REVERSE_SPEED = 2.0 
+CAR_TURN_SPEED = 3.0
+CAR_FRICTION = 0.99 # Multiplicateur (1.0 = aucune friction, 0.9 = friction très forte)
 
 
 class GameState:

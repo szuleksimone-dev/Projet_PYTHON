@@ -1,7 +1,7 @@
 import pygame
 import math
 from constants import (
-    CAR_ACCELERATION, CAR_WIDTH, CAR_HEIGHT, TILE_SIZE, CAR_MAX_REVERSE_SPEED, CAR_BRAKE
+    CAR_ACCELERATION, CAR_WIDTH, CAR_HEIGHT, TILE_SIZE, CAR_MAX_REVERSE_SPEED, CAR_BRAKE, CAR_TURN_SPEED, CAR_FRICTION
 )
 
 
@@ -31,32 +31,54 @@ class Car:
         Ce qu'il fait : Applique une accélération longitudinale positive en augmentant la vitesse.
         """
         self.speed += CAR_ACCELERATION
+    
+    def steer_left(self) -> None:
+        """Augmente l'angle de braquage (tourne à gauche)."""
+        self.angle -= CAR_TURN_SPEED
+
+    def steer_right(self) -> None:
+        """Diminue l'angle de braquage (tourne à droite)."""
+        self.angle += CAR_TURN_SPEED
 
     def update_position(self) -> None:
         """
         Appel : Depuis GameModel.update() à chaque frame de course.
         Partie MVC : Modèle.
-        Ce qu'il fait : Modifie les coordonnées de la voiture sur l'axe Y en fonction de la vitesse actuelle.
+        Ce qu'il fait : Modifie les coordonnées de la voiture en 2D avec formules trigonométriques et applique la friction de l'air.
         """
-        self.y += self.speed
+        # 1. On applique la friction de l'air pour ralentir la voiture naturellement
+        self.speed *= CAR_FRICTION
+
+        # Pour éviter que l'ordinateur ne calcule des micro-vitesses infinies (ex: 0.0000001),
+        # on force l'arrêt complet si la vitesse est minuscule.
+        if abs(self.speed) < 0.01:
+            self.speed = 0.0
+        rad = math.radians(self.angle)
+        self.y += self.speed * math.sin(rad)
+        self.x += self.speed * math.cos(rad)
 
     def reverse(self) -> None:
-        self.speed = max(-CAR_MAX_REVERSE_SPEED, self.speed - CAR_ACCELERATION)
         """
         Appel : Depuis GameController.apply_input() si la touche reculer est maintenue.
         Partie MVC : Modèle.
         Ce qu'il fait : Diminue la vitesse pour reculer. Utilise max() pour empêcher la voiture 
         de reculer de plus en plus vite à l'infini (limite à CAR_MAX_REVERSE_SPEED).
         """
+        self.speed = max(-CAR_MAX_REVERSE_SPEED, self.speed - CAR_ACCELERATION)
+        
     
     def brake(self) -> None:
-        self.speed = max(0.0, self.speed - CAR_BRAKE)
         """
         Appel : Depuis GameController.apply_input() si la touche de freinage est maintenue.
         Partie MVC : Modèle.
         Ce qu'il fait : Réduit la vitesse positive jusqu'à l'arrêt. Utilise max() pour 
         garantir que la vitesse ne devienne pas négative (la voiture s'arrête bien à 0.0).
         """
+        if self.speed>0:
+            self.speed = max(0.0, self.speed - CAR_BRAKE)
+        elif self.speed<0:
+            self.speed = min(0.0, self.speed + CAR_BRAKE)
+       
 
     def build_sprite(self) -> pygame.Surface:
         """
@@ -65,8 +87,11 @@ class Car:
         Ce qu'il fait : Crée le rectangle rouge avec des bords arrondis représentant la voiture.
         """
         surf = pygame.Surface((CAR_WIDTH, CAR_HEIGHT), pygame.SRCALPHA)
+        # Le corps de la voiture (Rouge)
         pygame.draw.rect(surf, (255, 0, 0), (0, 0, CAR_WIDTH,
                          CAR_HEIGHT), border_radius=5)
+        # Le pare-brise (Bleu clair) pour repérer l'avant
+        pygame.draw.rect(surf, (0, 200, 255), (CAR_WIDTH - 8, 2, 8, CAR_HEIGHT - 4))
         return surf
 
     def get_rotated_sprite(self) -> tuple[pygame.Surface, pygame.Rect]:

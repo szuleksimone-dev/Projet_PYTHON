@@ -5,6 +5,8 @@ MAPPING = {
     pygame.K_UP:     "accelerate",
     pygame.K_DOWN:   "reverse",
     pygame.K_SPACE:  "brake",
+    pygame.K_RIGHT: "steer_right",
+    pygame.K_LEFT: "steer_left"
 }
 """On associe deux touches vers des noms d'action puis les noms d'action vers les méthodes implémentées dans car.py """
 

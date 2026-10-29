@@ -134,6 +134,10 @@ class GameController:
             car.reverse()
         if player_input["brake"]:
             car.brake()
+        if player_input['steer_left']:
+            car.steer_left()
+        if player_input['steer_right']:
+            car.steer_right()
         
     def render(self) -> None:
         """
