@@ -21,7 +21,9 @@ class Car:
         self.x = start_col * TILE_SIZE + TILE_SIZE // 2
         self.y = start_row * TILE_SIZE + TILE_SIZE // 2
         self.speed: float = 0.0
-        self.angle: float = 0.0
+        self.angle: float = 0.0 # L'avant de la voiture 
+        self.movement_angle: float = 0.0 # La vraie direction du déplacement (physique/drift)
+        self.grip_factor = 0.05 # A MODIFIER avec valeur adaptée en fonction du terrain
         self.sprite = self.build_sprite()
 
     def accelerate(self) -> None:
@@ -46,14 +48,22 @@ class Car:
         Partie MVC : Modèle.
         Ce qu'il fait : Modifie les coordonnées de la voiture en 2D avec formules trigonométriques et applique la friction de l'air.
         """
-        # 1. On applique la friction de l'air pour ralentir la voiture naturellement
+        # On applique la friction de l'air pour ralentir la voiture naturellement
         self.speed *= CAR_FRICTION
-
         # Pour éviter que l'ordinateur ne calcule des micro-vitesses infinies (ex: 0.0000001),
         # on force l'arrêt complet si la vitesse est minuscule.
         if abs(self.speed) < 0.01:
             self.speed = 0.0
-        rad = math.radians(self.angle)
+        
+        # Gestion du dérapage (Drift façon Trackmania)
+        # Pour l'instant, on met une valeur fixe (ex: 0.15) -> Il faudra changer le grip en focntion du milieu
+        angle_diff = self.angle - self.movement_angle
+        # Sécurité mathématique pour éviter les bugs à 360 degrés
+        angle_diff = (angle_diff + 180) % 360 - 180 
+        
+        self.movement_angle += angle_diff * self.grip_factor
+
+        rad = math.radians(self.movement_angle)
         self.y += self.speed * math.sin(rad)
         self.x += self.speed * math.cos(rad)
 
@@ -88,7 +98,7 @@ class Car:
         """
         surf = pygame.Surface((CAR_WIDTH, CAR_HEIGHT), pygame.SRCALPHA)
         # Le corps de la voiture (Rouge)
-        pygame.draw.rect(surf, (255, 0, 0), (0, 0, CAR_WIDTH,
+        pygame.draw.rect(surf, (255, 165, 0), (0, 0, CAR_WIDTH,
                          CAR_HEIGHT), border_radius=5)
         # Le pare-brise (Bleu clair) pour repérer l'avant
         pygame.draw.rect(surf, (0, 200, 255), (CAR_WIDTH - 8, 2, 8, CAR_HEIGHT - 4))
