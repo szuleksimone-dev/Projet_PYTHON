@@ -23,10 +23,10 @@ class Car:
         self.speed: float = 0.0
         self.angle: float = 0.0             # L'avant de la voiture 
         self.movement_angle: float = 0.0    # La vraie direction du déplacement (physique/drift)
-        self.grip_factor: float = 0.15      # Vitesse de rattrapage de la trajectoire
-        self.traction_factor: float = 1.0   # 1.0 = 100% de l'accélération (Route). 0.5 = 50% (Terre)
-        self.drift_threshold: float = 10.0  # Angle d'écart à partir duquel on part en dérapage
-        self.drift_friction: float = 0.98   # Frottement appliqué SEULEMENT pendant le dérapage
+        self.grip_factor: float = 0.15      # La vitesse à laquelle la voiture rectifie sa trajectoire pour pointer vers là où on tourne
+        self.traction_factor: float = 1.0   # La puissance avec laquelle on arrive à accélérer ou à freiner en ligne droite.
+        self.drift_threshold: float = 10.0  # L'angle de braquage minimum à partir duquel la voiture décide de partir en glissade
+        self.drift_friction: float = 0.98   # Le freinage subit par la voiture uniquement lorsqu'elle est en train de glisser de côté
         self.is_drifting: bool = False      # État actuel de la voiture
         self.sprite = self.build_sprite()
 

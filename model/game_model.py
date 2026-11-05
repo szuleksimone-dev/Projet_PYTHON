@@ -32,7 +32,7 @@ class GameModel:
             ]
         else:
             grid = [
-                [RoadTile(col=col_idx, row=row_idx, tile_type="ice") for col_idx in range(GRID_COLS)] 
+                [RoadTile(col=col_idx, row=row_idx, tile_type="grass") for col_idx in range(GRID_COLS)] 
                 for row_idx in range(GRID_ROWS)
             ]
         """level_map = [
