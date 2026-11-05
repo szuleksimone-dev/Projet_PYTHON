@@ -88,8 +88,11 @@ class GameModel:
         current_tile = self.circuit.get_tile(car_col, car_row)
         
         if current_tile:
-            # Mettre à jour dynamiquement le grip de la voiture 
+            # Mettre à jour dynamiquement les propriétés  de la voiture 
             self.car.grip_factor = current_tile.grip
+            self.car.traction_factor = current_tile.traction_factor
+            self.car.drift_threshold = current_tile.drift_threshold
+            self.car.drift_friction = current_tile.drift_friction
 
         # Mettre à jour la position physique de la voiture
         self.car.update_position()

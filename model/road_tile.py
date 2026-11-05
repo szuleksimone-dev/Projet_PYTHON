@@ -8,13 +8,26 @@ class RoadTile:
         self.col = col
         self.row = row
         self.tile_type = tile_type
-        # Définition du grip selon le type de terrain
+        
+        # Définition des propriétés physiques selon le type de terrain
         if self.tile_type == "ice":
-            self.grip = 0.03  # Glissade extrême
+            self.grip = 0.03               # Glissade latérale extrême
+            self.traction_factor = 0.4     # Mauvaise motricité : patine à l'accélération/freinage
+            self.drift_threshold = 5.0     # Dérape très facilement (dès 5° d'écart)
+            self.drift_friction = 0.995    # Conserve presque toute sa vitesse en dérapant
+            
         elif self.tile_type == "grass":
-            self.grip = 0.08  # Adhérence moyenne
-        else:
-            self.grip = 0.20  # Route normale (grip élevé)
+            self.grip = 0.08               # Adhérence latérale faible
+            self.traction_factor = 0.6     # Motricité moyenne
+            self.drift_threshold = 10.0    # Dérape plus difficilement que sur la glace
+            self.drift_friction = 0.90     # La terre/herbe freine énormément la voiture en dérapage
+            
+        else: # "road"
+            self.grip = 0.20               # Très bonne adhérence latérale
+            self.traction_factor = 1.0     # 100% de l'accélération et du freinage
+            self.drift_threshold = 15.0    # Difficile de déraper (il faut braquer fort)
+            self.drift_friction = 0.96     # Frottement normal lors d'un dérapage sur bitume
+
         self.sprite: pygame.Surface | None = None
 
     def get_sprite(self, tile_size: int = TILE_SIZE) -> pygame.Surface:

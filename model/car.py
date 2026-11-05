@@ -21,9 +21,13 @@ class Car:
         self.x = start_col * TILE_SIZE + TILE_SIZE // 2
         self.y = start_row * TILE_SIZE + TILE_SIZE // 2
         self.speed: float = 0.0
-        self.angle: float = 0.0 # L'avant de la voiture 
-        self.movement_angle: float = 0.0 # La vraie direction du déplacement (physique/drift)
-        self.grip_factor = 0.05 # A MODIFIER avec valeur adaptée en fonction du terrain
+        self.angle: float = 0.0             # L'avant de la voiture 
+        self.movement_angle: float = 0.0    # La vraie direction du déplacement (physique/drift)
+        self.grip_factor: float = 0.15      # Vitesse de rattrapage de la trajectoire
+        self.traction_factor: float = 1.0   # 1.0 = 100% de l'accélération (Route). 0.5 = 50% (Terre)
+        self.drift_threshold: float = 10.0  # Angle d'écart à partir duquel on part en dérapage
+        self.drift_friction: float = 0.98   # Frottement appliqué SEULEMENT pendant le dérapage
+        self.is_drifting: bool = False      # État actuel de la voiture
         self.sprite = self.build_sprite()
 
     def accelerate(self) -> None:
@@ -32,14 +36,14 @@ class Car:
         Partie MVC : Modèle.
         Ce qu'il fait : Applique une accélération longitudinale positive en augmentant la vitesse.
         """
-        self.speed += CAR_ACCELERATION
+        self.speed += CAR_ACCELERATION * self.traction_factor
     
     def steer_left(self) -> None:
-        """Augmente l'angle de braquage (tourne à gauche)."""
+        """Diminue l'angle de braquage (tourne à gauche) : Sur Pygame axe Y vers le bas."""
         self.angle -= CAR_TURN_SPEED
 
     def steer_right(self) -> None:
-        """Diminue l'angle de braquage (tourne à droite)."""
+        """Augmente l'angle de braquage (tourne à droite)."""
         self.angle += CAR_TURN_SPEED
 
     def update_position(self) -> None:
@@ -48,24 +52,26 @@ class Car:
         Partie MVC : Modèle.
         Ce qu'il fait : Modifie les coordonnées de la voiture en 2D avec formules trigonométriques et applique la friction de l'air.
         """
-        # On applique la friction de l'air pour ralentir la voiture naturellement
-        self.speed *= CAR_FRICTION
-        # Pour éviter que l'ordinateur ne calcule des micro-vitesses infinies (ex: 0.0000001),
-        # on force l'arrêt complet si la vitesse est minuscule.
+        angle_diff = self.angle - self.movement_angle
+        angle_diff = (angle_diff + 180) % 360 - 180 
+
+        self.is_drifting = abs(angle_diff) > self.drift_threshold
+
+        if self.is_drifting:
+            # Si on dérape, on applique le frottement du terrain
+            self.speed *= self.drift_friction
+        else:
+            # Si on roule normalement, on applique le frottement de l'air classique
+            self.speed *= CAR_FRICTION
+
         if abs(self.speed) < 0.01:
             self.speed = 0.0
-        
-        # Gestion du dérapage (Drift façon Trackmania)
-        # Pour l'instant, on met une valeur fixe (ex: 0.15) -> Il faudra changer le grip en focntion du milieu
-        angle_diff = self.angle - self.movement_angle
-        # Sécurité mathématique pour éviter les bugs à 360 degrés
-        angle_diff = (angle_diff + 180) % 360 - 180 
         
         self.movement_angle += angle_diff * self.grip_factor
 
         rad = math.radians(self.movement_angle)
-        self.y += self.speed * math.sin(rad)
         self.x += self.speed * math.cos(rad)
+        self.y += self.speed * math.sin(rad)
 
     def reverse(self) -> None:
         """
@@ -74,7 +80,7 @@ class Car:
         Ce qu'il fait : Diminue la vitesse pour reculer. Utilise max() pour empêcher la voiture 
         de reculer de plus en plus vite à l'infini (limite à CAR_MAX_REVERSE_SPEED).
         """
-        self.speed = max(-CAR_MAX_REVERSE_SPEED, self.speed - CAR_ACCELERATION)
+        self.speed = max(-CAR_MAX_REVERSE_SPEED, self.speed - (CAR_ACCELERATION * self.traction_factor))
         
     
     def brake(self) -> None:
@@ -84,10 +90,12 @@ class Car:
         Ce qu'il fait : Réduit la vitesse positive jusqu'à l'arrêt. Utilise max() pour 
         garantir que la vitesse ne devienne pas négative (la voiture s'arrête bien à 0.0).
         """
-        if self.speed>0:
-            self.speed = max(0.0, self.speed - CAR_BRAKE)
-        elif self.speed<0:
-            self.speed = min(0.0, self.speed + CAR_BRAKE)
+        actual_brake = CAR_BRAKE * self.traction_factor
+        
+        if self.speed > 0:
+            self.speed = max(0.0, self.speed - actual_brake)
+        elif self.speed < 0:
+            self.speed = min(0.0, self.speed + actual_brake)
        
 
     def build_sprite(self) -> pygame.Surface:
