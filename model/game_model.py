@@ -10,11 +10,13 @@ class GameModel:
     Gère les données et la logique globale du jeu (état, circuit, voitures).
     """
 
-    def __init__(self):
+    def __init__(self,start_col=7, start_row=1):
         """Initialise le modèle avec l'état sur le Menu, sans circuit ni voiture."""
         self.state: str = GameState.MENU
         self.circuit: Circuit | None = None
         self.car: Car | None = None
+        self.last_safe_x = start_col * TILE_SIZE + TILE_SIZE // 2
+        self.last_safe_y = start_row * TILE_SIZE + TILE_SIZE // 2
         #--- POUR LA SELECTION DE CIRCUIT ---
         self.circuit_list = ["Circuit Simple", "Circuit Complexe"]
         self.selected_circuit_idx = 0
@@ -87,12 +89,23 @@ class GameModel:
         # Récupérer la tuile correspondante dans le circuit (si on est dans les limites)
         current_tile = self.circuit.get_tile(car_col, car_row)
         
-        if current_tile:
-            # Mettre à jour dynamiquement les propriétés  de la voiture 
+        if current_tile is None:
+            # Hors de la grille : Téléportation immédiate, vitesse à 0 et on stoppe net
+            self.car.x = self.last_safe_x
+            self.car.y = self.last_safe_y
+            self.car.speed = 0.0
+            return  # On sort de la fonction pour éviter que la voiture ne bouge à nouveau dans la même frame
+
+        else:
+            # Si on est sur une tuile valide, on applique les propriétés physiques
             self.car.grip_factor = current_tile.grip
             self.car.traction_factor = current_tile.traction_factor
             self.car.drift_threshold = current_tile.drift_threshold
             self.car.drift_friction = current_tile.drift_friction
+            
+            # Et on sauvegarde ce point comme le dernier point sain
+            self.last_safe_x = self.car.x
+            self.last_safe_y = self.car.y
 
         # Mettre à jour la position physique de la voiture
         self.car.update_position()
