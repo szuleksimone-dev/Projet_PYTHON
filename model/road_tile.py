@@ -20,13 +20,19 @@ class RoadTile:
             self.grip = 0.07               # Adhérence latérale faible
             self.traction_factor = 0.6     # Motricité moyenne
             self.drift_threshold = 18.0    # Dérape plus facilement que sur la route
-            self.drift_friction = 0.986     # Freine un tout petit peu plus que la route en dérapant, mais reste fluide
+            self.drift_friction = 0.986    # Freine un tout petit peu plus que la route en dérapant, mais reste fluide
 
         elif self.tile_type == "terre":
             self.grip = 0.05               # Glisse un peu (entre la glace et l'herbe, style rallye)
             self.traction_factor = 0.65    # Motricité correcte mais ça patine légèrement
             self.drift_threshold = 8.0     # Dérape très facilement au braquage
             self.drift_friction = 0.99     # Conserve très bien sa vitesse en glissade
+
+        elif self.tile_type == "empty":
+            self.grip = 0.0                
+            self.traction_factor = 0.0     
+            self.drift_threshold = 0.0     
+            self.drift_friction = 0.0     
 
         else: # "road"
             self.grip = 0.20               # Très bonne adhérence latérale (accroche bien)

@@ -89,7 +89,7 @@ class GameModel:
         # Récupérer la tuile correspondante dans le circuit (si on est dans les limites)
         current_tile = self.circuit.get_tile(car_col, car_row)
         
-        if current_tile is None:
+        if current_tile is None or current_tile.tile_type == "empty":
             # Hors de la grille : Téléportation immédiate, vitesse à 0 et on stoppe net
             self.car.x = self.last_safe_x
             self.car.y = self.last_safe_y
