@@ -30,13 +30,13 @@ class GameController:
         )
         self.clock = pygame.time.Clock()
 
-        # Modèle : contient les données et la physique du jeu.
+        # Modèle : données et physique des deux voitures.
         self.model = GameModel()
 
-        # Vue : affiche le jeu à l'écran.
+        # Vue : affichage du jeu.
         self.view = GameView(self.screen)
 
-        # Gestion des commandes des deux joueurs.
+        # Commandes clavier des deux joueurs.
         self.input_handler = InputHandler()
 
         self.running = True
@@ -113,40 +113,49 @@ class GameController:
 
     def update(self) -> None:
         """
-        Met à jour le jeu pendant une course.
+        Appel : À chaque frame pendant la course.
 
-        Récupère les commandes des deux joueurs.
-        Pour le moment, le modèle contient une seule voiture.
-        Seules les commandes du joueur 1 sont appliquées.
+        Lit les commandes des deux joueurs et les applique
+        séparément à leurs voitures.
+
+        Ensuite, demande au modèle de mettre à jour
+        la physique des deux voitures.
         """
         if self.model.state != GameState.RACING:
             return
 
-        # Lecture des commandes des deux joueurs.
+        # Lecture simultanée des deux claviers de commande.
         inputs = self.input_handler.get_inputs()
 
-        # Récupération de la voiture actuelle.
-        car = self.model.car
+        # Le joueur 1 contrôle la première voiture.
+        if self.model.car is not None:
+            self.apply_input(
+                self.model.car,
+                inputs["player1"]
+            )
 
-        if car is not None:
-            # Le joueur 1 contrôle la voiture existante.
-            self.apply_input(car, inputs["player1"])
+        # Le joueur 2 contrôle la deuxième voiture.
+        if self.model.car2 is not None:
+            self.apply_input(
+                self.model.car2,
+                inputs["player2"]
+            )
 
-        # Mise à jour de la physique de la voiture.
+        # Mise à jour physique des deux voitures.
         self.model.update()
 
     def apply_input(self, car, player_input: dict) -> None:
         """
-        Applique les commandes du joueur à sa voiture.
+        Applique les commandes d'un joueur à sa voiture.
 
-        Le contrôleur traduit les actions du clavier
-        en appels aux méthodes de la classe Car.
+        Cette méthode est commune aux deux joueurs :
+        seule la voiture et les commandes changent.
         """
         if player_input["accelerate"]:
             car.accelerate()
 
         if player_input["reverse"]:
-            # La commande de recul permet aussi de ralentir.
+            # Ralentit la voiture puis permet de reculer.
             car.reverse()
 
         if player_input["steer_left"]:
@@ -155,8 +164,8 @@ class GameController:
         if player_input["steer_right"]:
             car.steer_right()
 
-        # L'action use_item sera connectée quand
-        # le système d'objets sera disponible.
+        # L'action use_item sera connectée plus tard
+        # si le système d'objets est ajouté.
 
     def render(self) -> None:
         """Demande à la vue d'afficher le jeu."""

@@ -12,40 +12,65 @@ class GameModel:
     """
     Partie MVC : Modèle.
 
-    Gère les données et la logique globale du jeu :
-    l'état du jeu, le circuit, la voiture et la course.
+    Gère les données et la logique du jeu :
+    les circuits, les deux voitures et la progression de la course.
     """
 
     def __init__(self, start_col=7, start_row=1):
         """
-        Initialise le modèle au menu principal.
-        Aucun circuit ni aucune voiture n'est encore créé.
+        Initialise le modèle avec le menu principal.
+        Les voitures seront créées au chargement du circuit.
         """
         self.state: str = GameState.MENU
         self.circuit: Circuit | None = None
+
+        # Positions de départ.
+        self.start_col = start_col
+        self.start_row = start_row
+
+        # Une voiture indépendante pour chaque joueur.
+        # self.car garde son ancien nom pour la compatibilité.
         self.car: Car | None = None
+        self.car2: Car | None = None
 
-        # Dernière position sûre de la voiture.
-        self.last_safe_x = start_col * TILE_SIZE + TILE_SIZE // 2
-        self.last_safe_y = start_row * TILE_SIZE + TILE_SIZE // 2
+        # Dernières positions sûres des deux voitures.
+        self.last_safe_positions = {
+            "player1": (
+                start_col * TILE_SIZE + TILE_SIZE // 2,
+                start_row * TILE_SIZE + TILE_SIZE // 2
+            ),
+            "player2": (
+                start_col * TILE_SIZE + TILE_SIZE // 2,
+                (start_row + 1) * TILE_SIZE + TILE_SIZE // 2
+            )
+        }
 
-        # Sélection du circuit dans le menu.
+        # Compatibilité avec le code précédent.
+        self.last_safe_x, self.last_safe_y = (
+            self.last_safe_positions["player1"]
+        )
+
+        # Sélection du circuit.
         self.circuit_list = ["Circuit Simple", "Circuit Complexe"]
         self.selected_circuit_idx = 0
 
-        # Gestion de la course, configurée après le chargement du circuit.
+        # Gestion des checkpoints, des tours et du vainqueur.
         self.race_coordinator: RaceCoordinator | None = None
 
     def load_circuit(self) -> None:
         """
-        Appel : Depuis le contrôleur, après la sélection du circuit.
+        Appel : Depuis GameController après la sélection du circuit.
 
-        Crée la grille du circuit et fait apparaître la voiture.
+        Construit le circuit et crée les deux voitures.
         """
         if self.selected_circuit_idx == 0:
             grid = [
                 [
-                    RoadTile(col=col_idx, row=row_idx, tile_type="road")
+                    RoadTile(
+                        col=col_idx,
+                        row=row_idx,
+                        tile_type="road"
+                    )
                     for col_idx in range(GRID_COLS)
                 ]
                 for row_idx in range(GRID_ROWS)
@@ -53,46 +78,19 @@ class GameModel:
         else:
             grid = [
                 [
-                    RoadTile(col=col_idx, row=row_idx, tile_type="grass")
+                    RoadTile(
+                        col=col_idx,
+                        row=row_idx,
+                        tile_type="grass"
+                    )
                     for col_idx in range(GRID_COLS)
                 ]
                 for row_idx in range(GRID_ROWS)
             ]
 
-        # Exemple de carte plus élaborée pour une future version.
-        """level_map = [
-                "RRRRRRRRRRRRRRRR",
-                "RIIIRRRRRRRRRRRR",
-                "RIIIRRRRRRRRRRRR",
-                "RRRRRRGGGGGRRRRR",
-                "RRRRRRRRRRRRRRRR",
-                # ... (autant de lignes que GRID_ROWS et GRID_COLS)
-            ]
-
-            grid = []
-            for row_idx, row_str in enumerate(level_map):
-                row_tiles = []
-                for col_idx, char in enumerate(row_str):
-                    if char == 'I':
-                        t_type = "ice"
-                    elif char == 'G':
-                        t_type = "grass"
-                    else:
-                        t_type = "road"
-
-                    row_tiles.append(
-                        RoadTile(
-                            col=col_idx,
-                            row=row_idx,
-                            tile_type=t_type
-                        )
-                    )
-                grid.append(row_tiles)
-        """
-
         self.circuit = Circuit(grid=grid)
 
-        # Une nouvelle carte commence avec une nouvelle course.
+        # Une nouvelle course repart de zéro.
         self.race_coordinator = None
 
         self.spawn_car()
@@ -101,23 +99,33 @@ class GameModel:
         """
         Appel : Depuis load_circuit().
 
-        Crée la voiture du premier joueur.
+        Crée deux voitures à des positions différentes.
+        Le joueur 2 démarre une ligne plus bas.
         """
-        self.car = Car(7, 1)
+        self.car = Car(self.start_col, self.start_row)
+        self.car2 = Car(self.start_col, self.start_row + 1)
 
-    def configure_race(self, checkpoints, finish_position, laps_to_win=3) -> None:
+        self.last_safe_positions = {
+            "player1": (self.car.x, self.car.y),
+            "player2": (self.car2.x, self.car2.y)
+        }
+
+        self.last_safe_x = self.car.x
+        self.last_safe_y = self.car.y
+
+    def configure_race(
+        self, checkpoints, finish_position, laps_to_win=3
+    ) -> None:
         """
-        Appel : Après load_circuit(), quand les positions
+        Appel : Après load_circuit(), lorsque les positions
         des checkpoints et de l'arrivée sont connues.
 
-        Prépare la gestion des tours et du vainqueur.
-
-        checkpoints : liste des cases (col, row).
-        finish_position : case de la ligne d'arrivée.
-        laps_to_win : nombre de tours nécessaires pour gagner.
+        Initialise la progression des deux joueurs.
         """
         if self.circuit is None:
-            raise ValueError("Le circuit doit être chargé avant la course.")
+            raise ValueError(
+                "Le circuit doit être chargé avant la course."
+            )
 
         self.race_coordinator = RaceCoordinator(
             checkpoints=checkpoints,
@@ -129,56 +137,70 @@ class GameModel:
         """
         Appel : Depuis GameController.update(), à chaque frame.
 
-        Met à jour la physique de la voiture et vérifie
-        sa progression dans la course.
+        Met à jour séparément la physique des deux voitures
+        et leur progression dans la course.
         """
-        if (
-            self.state != GameState.RACING
-            or self.circuit is None
-            or self.car is None
-        ):
+        if self.state != GameState.RACING or self.circuit is None:
             return
 
-        # Position actuelle de la voiture dans la grille.
-        car_col = int(self.car.x // TILE_SIZE)
-        car_row = int(self.car.y // TILE_SIZE)
+        if self.car is not None:
+            self._update_car("player1", self.car)
 
-        # Terrain situé sous la voiture avant son déplacement.
+        if self.car2 is not None:
+            self._update_car("player2", self.car2)
+
+    def _update_car(self, player, car) -> None:
+        """
+        Appel : Depuis update(), pour chaque voiture.
+
+        Applique les propriétés du terrain, déplace la voiture
+        et vérifie les checkpoints.
+
+        Chaque joueur possède sa propre position de sécurité.
+        """
+        # Position actuelle dans la grille.
+        car_col = int(car.x // TILE_SIZE)
+        car_row = int(car.y // TILE_SIZE)
+
         current_tile = self.circuit.get_tile(car_col, car_row)
 
+        # Si la voiture est hors de la piste, on la replace.
         if current_tile is None or current_tile.tile_type == "empty":
-            # Hors de la piste : retour à la dernière position sûre.
-            self.car.x = self.last_safe_x
-            self.car.y = self.last_safe_y
-            self.car.speed = 0.0
+            car.x, car.y = self.last_safe_positions[player]
+            car.speed = 0.0
             return
 
-        # Application des propriétés physiques du terrain.
-        self.car.grip_factor = current_tile.grip
-        self.car.traction_factor = current_tile.traction_factor
-        self.car.drift_threshold = current_tile.drift_threshold
-        self.car.drift_friction = current_tile.drift_friction
+        # Propriétés physiques du terrain actuel.
+        car.grip_factor = current_tile.grip
+        car.traction_factor = current_tile.traction_factor
+        car.drift_threshold = current_tile.drift_threshold
+        car.drift_friction = current_tile.drift_friction
 
-        # Sauvegarde de la dernière position sûre.
-        self.last_safe_x = self.car.x
-        self.last_safe_y = self.car.y
+        # Sauvegarde de la position avant le déplacement.
+        self.last_safe_positions[player] = (car.x, car.y)
 
-        # Déplacement physique de la voiture.
-        self.car.update_position()
+        if player == "player1":
+            self.last_safe_x = car.x
+            self.last_safe_y = car.y
 
-        # Vérification de la nouvelle case après le déplacement.
-        new_col = int(self.car.x // TILE_SIZE)
-        new_row = int(self.car.y // TILE_SIZE)
+        # Déplacement de la voiture.
+        car.update_position()
+
+        # Vérification de la nouvelle position.
+        new_col = int(car.x // TILE_SIZE)
+        new_row = int(car.y // TILE_SIZE)
 
         new_tile = self.circuit.get_tile(new_col, new_row)
 
-        # Un checkpoint ne compte que sur une case valide.
+        # Empêche la voiture de sortir du circuit.
         if new_tile is None or new_tile.tile_type == "empty":
+            car.x, car.y = self.last_safe_positions[player]
+            car.speed = 0.0
             return
 
-        # Transmission de la position au gestionnaire de course.
+        # Enregistre la progression du bon joueur.
         if self.race_coordinator is not None:
             self.race_coordinator.update_player_tile(
-                "player1",
+                player,
                 (new_col, new_row)
             )
