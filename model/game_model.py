@@ -7,6 +7,7 @@ from model.circuit import Circuit
 from model.road_tile import RoadTile
 from model.race_coordinator import RaceCoordinator
 from model.race_config import get_race_config
+from model.special_blocks import SpecialBlocks
 
 
 class GameModel:
@@ -14,25 +15,25 @@ class GameModel:
     Partie MVC : Modèle.
 
     Gère les données et la logique du jeu :
-    les circuits, les deux voitures et la progression
-    de la course jusqu'à la victoire.
+    les circuits, les deux voitures, les checkpoints,
+    les tours et les blocs spéciaux.
     """
 
     def __init__(self, start_col=7, start_row=1):
         """
         Initialise le modèle avec le menu principal.
 
-        Les voitures et le circuit sont créés
+        Le circuit et les voitures sont créés
         au moment du lancement d'une course.
         """
         self.state: str = GameState.MENU
         self.circuit: Circuit | None = None
 
-        # Positions de départ des deux joueurs.
+        # Positions de départ par défaut.
         self.start_col = start_col
         self.start_row = start_row
 
-        # Une voiture indépendante pour chaque joueur.
+        # Une voiture pour chaque joueur.
         self.car: Car | None = None
         self.car2: Car | None = None
 
@@ -60,15 +61,18 @@ class GameModel:
         ]
         self.selected_circuit_idx = 0
 
-        # Gestion des checkpoints, des tours et du vainqueur.
+        # Logique des tours et de la victoire.
         self.race_coordinator: RaceCoordinator | None = None
+
+        # Gestion des boosts et des blocs de départ.
+        self.special_blocks: SpecialBlocks | None = None
 
     def load_circuit(self) -> None:
         """
-        Appel : Depuis GameController après le choix du circuit.
+        Appel : Depuis GameController.
 
-        Crée la grille, les deux voitures et initialise
-        les règles d'une nouvelle course.
+        Crée le circuit, configure les blocs spéciaux,
+        place les deux voitures et prépare la course.
         """
         if self.selected_circuit_idx == 0:
             grid = [
@@ -98,12 +102,29 @@ class GameModel:
         # Création du circuit.
         self.circuit = Circuit(grid=grid)
 
-        # Création des deux voitures.
-        self.spawn_car()
-
-        # Configuration automatique de la nouvelle course.
+        # Lecture des paramètres provisoires de la course.
         race_config = get_race_config()
 
+        # Création des blocs spéciaux.
+        # Les positions pourront changer avec le level design.
+        self.special_blocks = SpecialBlocks(
+            boost_positions=race_config["boost_positions"],
+            start_positions={
+                "player1": (
+                    self.start_col,
+                    self.start_row
+                ),
+                "player2": (
+                    self.start_col,
+                    self.start_row + 1
+                )
+            }
+        )
+
+        # Place les voitures sur leurs blocs de départ.
+        self.spawn_car()
+
+        # Initialise les checkpoints, les tours et l'arrivée.
         self.configure_race(
             checkpoints=race_config["checkpoints"],
             finish_position=race_config["finish_position"],
@@ -114,13 +135,35 @@ class GameModel:
         """
         Appel : Depuis load_circuit().
 
-        Crée les deux voitures à des positions différentes.
-        Le joueur 2 commence une ligne plus bas.
-        """
-        self.car = Car(self.start_col, self.start_row)
-        self.car2 = Car(self.start_col, self.start_row + 1)
+        Crée les voitures sur les blocs de départ.
 
-        # Chaque voiture possède sa position de sécurité.
+        Si les blocs spéciaux ne sont pas encore chargés,
+        utilise les positions de départ par défaut.
+        """
+        start1 = (
+            self.start_col,
+            self.start_row
+        )
+
+        start2 = (
+            self.start_col,
+            self.start_row + 1
+        )
+
+        # Récupère les positions des blocs de départ.
+        if self.special_blocks is not None:
+            start1 = self.special_blocks.get_start_position(
+                "player1"
+            )
+            start2 = self.special_blocks.get_start_position(
+                "player2"
+            )
+
+        # Création des voitures.
+        self.car = Car(*start1)
+        self.car2 = Car(*start2)
+
+        # Initialise les positions de sécurité.
         self.last_safe_positions = {
             "player1": (self.car.x, self.car.y),
             "player2": (self.car2.x, self.car2.y)
@@ -151,10 +194,10 @@ class GameModel:
 
     def is_race_finished(self) -> bool:
         """
-        Indique si un joueur a gagné.
+        Retourne True si un joueur a gagné.
 
-        Cette information peut être utilisée
-        par le contrôleur et par la vue.
+        Le contrôleur et la vue peuvent utiliser
+        cette information.
         """
         return (
             self.race_coordinator is not None
@@ -163,9 +206,7 @@ class GameModel:
 
     def _stop_cars(self) -> None:
         """
-        Arrête immédiatement les deux voitures.
-
-        Appel : Depuis update() quand un joueur gagne.
+        Arrête les deux voitures après une victoire.
         """
         for car in (self.car, self.car2):
             if car is not None:
@@ -173,11 +214,10 @@ class GameModel:
 
     def update(self) -> None:
         """
-        Appel : Depuis GameController.update(), à chaque frame.
+        Appel : Depuis GameController.update().
 
-        Met à jour les deux voitures pendant la course.
-        Dès qu'un joueur gagne, arrête les deux voitures
-        et empêche les déplacements suivants.
+        Met à jour les voitures pendant la course.
+        Arrête immédiatement la course si un joueur gagne.
         """
         if self.state != GameState.RACING:
             return
@@ -185,7 +225,7 @@ class GameModel:
         if self.circuit is None:
             return
 
-        # Si la course est déjà terminée, aucun déplacement.
+        # Aucune voiture ne bouge après la victoire.
         if self.is_race_finished():
             self._stop_cars()
             return
@@ -194,7 +234,6 @@ class GameModel:
         if self.car is not None:
             self._update_car("player1", self.car)
 
-            # La victoire du joueur 1 arrête immédiatement la course.
             if self.is_race_finished():
                 self._stop_cars()
                 return
@@ -203,7 +242,6 @@ class GameModel:
         if self.car2 is not None:
             self._update_car("player2", self.car2)
 
-            # La victoire du joueur 2 arrête également la course.
             if self.is_race_finished():
                 self._stop_cars()
                 return
@@ -212,22 +250,19 @@ class GameModel:
         """
         Appel : Depuis update(), pour chaque voiture.
 
-        Applique les propriétés du terrain,
-        déplace la voiture et vérifie sa progression.
-
-        Chaque joueur possède sa propre position sûre.
+        Applique la physique du terrain, déplace la voiture
+        et vérifie les boosts ainsi que les checkpoints.
         """
         # Position actuelle de la voiture dans la grille.
         car_col = int(car.x // TILE_SIZE)
         car_row = int(car.y // TILE_SIZE)
 
-        # Terrain situé sous la voiture.
         current_tile = self.circuit.get_tile(
             car_col,
             car_row
         )
 
-        # Sortie de piste : retour à la dernière position sûre.
+        # Retour à la dernière position sûre si nécessaire.
         if (
             current_tile is None
             or current_tile.tile_type == "empty"
@@ -236,13 +271,13 @@ class GameModel:
             car.speed = 0.0
             return
 
-        # Application des propriétés physiques du terrain.
+        # Propriétés physiques du terrain.
         car.grip_factor = current_tile.grip
         car.traction_factor = current_tile.traction_factor
         car.drift_threshold = current_tile.drift_threshold
         car.drift_friction = current_tile.drift_friction
 
-        # Sauvegarde de la dernière position sûre.
+        # Sauvegarde de la position sûre.
         self.last_safe_positions[player] = (
             car.x,
             car.y
@@ -252,7 +287,7 @@ class GameModel:
             self.last_safe_x = car.x
             self.last_safe_y = car.y
 
-        # Déplacement physique de la voiture.
+        # Déplacement de la voiture.
         car.update_position()
 
         # Nouvelle position dans la grille.
@@ -264,7 +299,7 @@ class GameModel:
             new_row
         )
 
-        # Vérifie si la voiture est sortie du circuit.
+        # Vérifie que la nouvelle case est autorisée.
         if (
             new_tile is None
             or new_tile.tile_type == "empty"
@@ -273,9 +308,20 @@ class GameModel:
             car.speed = 0.0
             return
 
-        # Enregistre les checkpoints et les tours du joueur.
+        new_position = (new_col, new_row)
+
+        # NOUVEAU : vérifie les cases de boost.
+        # Le boost est appliqué à l'entrée sur la case.
+        if self.special_blocks is not None:
+            self.special_blocks.update_player(
+                player,
+                new_position,
+                car
+            )
+
+        # Vérifie les checkpoints et les tours.
         if self.race_coordinator is not None:
             self.race_coordinator.update_player_tile(
                 player,
-                (new_col, new_row)
+                new_position
             )
