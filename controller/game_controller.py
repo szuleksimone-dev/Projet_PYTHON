@@ -24,10 +24,13 @@ class GameController:
     """
 
     def __init__(self):
-        """Initialise les éléments nécessaires au jeu."""
+        """
+        Initialise les éléments nécessaires au jeu.
+        """
         self.screen = pygame.display.set_mode(
             (WINDOW_WIDTH, WINDOW_HEIGHT)
         )
+
         self.clock = pygame.time.Clock()
 
         # Modèle : données et physique des deux voitures.
@@ -42,7 +45,9 @@ class GameController:
         self.running = True
 
     def run(self) -> None:
-        """Exécute la boucle principale du jeu."""
+        """
+        Exécute la boucle principale du jeu.
+        """
         while self.running:
             self.handle_events()
             self.update()
@@ -55,6 +60,7 @@ class GameController:
         fermeture de fenêtre et touches pressées.
         """
         for event in pygame.event.get():
+
             if event.type == pygame.QUIT:
                 self.quit()
 
@@ -75,7 +81,9 @@ class GameController:
             self.handle_circuit_selection_key(key)
 
     def handle_menu_key(self, key: int) -> None:
-        """Gère les commandes du menu principal."""
+        """
+        Gère les commandes du menu principal.
+        """
         if key == pygame.K_RETURN:
             self.model.state = GameState.CIRCUIT_SELECTION
 
@@ -92,19 +100,17 @@ class GameController:
         nb_circuits = len(self.model.circuit_list)
 
         if key == pygame.K_RIGHT or key == pygame.K_DOWN:
-            # Sélection du circuit suivant.
             self.model.selected_circuit_idx = (
                 self.model.selected_circuit_idx + 1
             ) % nb_circuits
 
         elif key == pygame.K_LEFT or key == pygame.K_UP:
-            # Sélection du circuit précédent.
             self.model.selected_circuit_idx = (
                 self.model.selected_circuit_idx - 1
             ) % nb_circuits
 
         elif key == pygame.K_RETURN:
-            # Chargement du circuit et début de la course.
+            # Charge le circuit et démarre une nouvelle course.
             self.model.load_circuit()
             self.model.state = GameState.RACING
 
@@ -113,18 +119,27 @@ class GameController:
 
     def update(self) -> None:
         """
-        Appel : À chaque frame pendant la course.
+        Appel : À chaque frame de la boucle principale.
 
         Lit les commandes des deux joueurs et les applique
-        séparément à leurs voitures.
+        à leurs voitures pendant la course.
 
-        Ensuite, demande au modèle de mettre à jour
-        la physique des deux voitures.
+        Après la victoire d'un joueur, les commandes
+        ne sont plus appliquées.
         """
+        # Les voitures ne bougent que pendant une course.
         if self.model.state != GameState.RACING:
             return
 
-        # Lecture simultanée des deux claviers de commande.
+        # Vérifie si un joueur a déjà gagné.
+        race = getattr(self.model, "race_coordinator", None)
+
+        if race is not None and race.winner is not None:
+            # La course est terminée :
+            # aucune nouvelle commande n'est appliquée.
+            return
+
+        # Lecture des commandes des deux joueurs.
         inputs = self.input_handler.get_inputs()
 
         # Le joueur 1 contrôle la première voiture.
@@ -141,7 +156,8 @@ class GameController:
                 inputs["player2"]
             )
 
-        # Mise à jour physique des deux voitures.
+        # Mise à jour de la physique des deux voitures.
+        # Le modèle vérifie aussi la victoire.
         self.model.update()
 
     def apply_input(self, car, player_input: dict) -> None:
@@ -168,11 +184,15 @@ class GameController:
         # si le système d'objets est ajouté.
 
     def render(self) -> None:
-        """Demande à la vue d'afficher le jeu."""
+        """
+        Demande à la vue d'afficher le jeu.
+        """
         self.view.draw(self.model)
 
     def quit(self) -> None:
-        """Ferme la fenêtre et arrête le programme."""
+        """
+        Ferme la fenêtre et arrête le programme.
+        """
         self.running = False
         pygame.quit()
         sys.exit()
