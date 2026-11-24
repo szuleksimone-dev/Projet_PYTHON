@@ -2,6 +2,7 @@ from constants import GameState, GRID_ROWS, GRID_COLS, TILE_SIZE
 from model.car import Car
 from model.circuit import Circuit
 from model.road_tile import RoadTile
+from model.circuit_maps import CIRCUIT_1, CIRCUIT_2
 
 
 class GameModel:
@@ -28,39 +29,31 @@ class GameModel:
         Ce qu'il fait : Génère la grille du circuit et fait apparaître la voiture.
         """
         if self.selected_circuit_idx == 0:
-            grid = [
-                [RoadTile(col=col_idx, row=row_idx, tile_type="road") for col_idx in range(GRID_COLS)] 
-                for row_idx in range(GRID_ROWS)
-            ]
-        else:
-            grid = [
-                [RoadTile(col=col_idx, row=row_idx, tile_type="grass") for col_idx in range(GRID_COLS)] 
-                for row_idx in range(GRID_ROWS)
-            ]
-        """level_map = [
-                "RRRRRRRRRRRRRRRR",
-                "RIIIRRRRRRRRRRRR",
-                "RIIIRRRRRRRRRRRR",
-                "RRRRRRGGGGGRRRRR",
-                "RRRRRRGGGGGRRRRR",
-                "RRRRRRRRRRRRRRRR",
-                # ... (autant de lignes que GRID_ROWS, et de caractères que GRID_COLS)
-            ]
+            level_map = CIRCUIT_1
+        else :
+            level_map = CIRCUIT_2
 
-            grid = []
-            for row_idx, row_str in enumerate(level_map):
-                row_tiles = []
-                for col_idx, char in enumerate(row_str):
-                    # On traduit la lettre en type de terrain
-                    if char == 'I':
-                        t_type = "ice"
-                    elif char == 'G':
-                        t_type = "grass"
-                    else:
-                        t_type = "road"
-                    
-                    row_tiles.append(RoadTile(col=col_idx, row=row_idx, tile_type=t_type))
-                grid.append(row_tiles) -> POUR CIRCUIT ELABORE """
+        grid = []
+        for row_idx, row_str in enumerate(level_map):
+            row_tiles = []
+            for col_idx, char in enumerate(row_str):
+                # On traduit la lettre en type de terrain
+                if char == 'I':
+                    t_type = "ice"
+                elif char == 'G':
+                    t_type = "grass"
+                elif char == 'T':
+                    t_type = "terre"
+                elif char == 'F':
+                    t_type = "fence"
+                else:
+                    t_type = "road"
+
+                row_tiles.append(
+                    RoadTile(col=col_idx, row=row_idx, tile_type=t_type)
+                )
+            grid.append(row_tiles)
+
         self.circuit = Circuit(grid=grid)
         self.spawn_car()
 
@@ -109,3 +102,14 @@ class GameModel:
 
         # Mettre à jour la position physique de la voiture
         self.car.update_position()
+
+        # Vérifier la collision avec une barrière après le déplacement
+        new_col = int(self.car.x // TILE_SIZE)
+        new_row = int(self.car.y // TILE_SIZE)
+        new_tile = self.circuit.get_tile(new_col, new_row)
+
+        if new_tile is not None and new_tile.tile_type == "fence":
+            # Revenir à la position précédente et arrêter la voiture
+            self.car.x = self.last_safe_x
+            self.car.y = self.last_safe_y
+            self.car.speed = 0.0
