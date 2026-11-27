@@ -54,6 +54,8 @@ class RoadTile:
             surface.fill((50, 150, 50))    # Vert herbe
         elif self.tile_type == "terre":
             surface.fill((140, 85, 45))    # Marron terre
+        elif self.tile_type == "fence":
+            surface.fill((128, 0, 32))   # rouge bordure
         else:
             surface.fill((80, 80, 90))     # Gris route
 

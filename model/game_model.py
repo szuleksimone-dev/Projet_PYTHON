@@ -1,8 +1,8 @@
-
 # Kart-Engine v2.3
 
-from constants import GameState, GRID_ROWS, GRID_COLS, TILE_SIZE
+from constants import GameState, TILE_SIZE
 from model.car import Car
+from model.circuit_maps import CIRCUIT_1, CIRCUIT_2
 from model.circuit import Circuit
 from model.road_tile import RoadTile
 from model.race_coordinator import RaceCoordinator
@@ -74,30 +74,34 @@ class GameModel:
         Crée le circuit, configure les blocs spéciaux,
         place les deux voitures et prépare la course.
         """
+        # Choix de la carte créée par un autre membre du groupe.
         if self.selected_circuit_idx == 0:
-            grid = [
-                [
-                    RoadTile(
-                        col=col_idx,
-                        row=row_idx,
-                        tile_type="road"
-                    )
-                    for col_idx in range(GRID_COLS)
-                ]
-                for row_idx in range(GRID_ROWS)
-            ]
+            level_map = CIRCUIT_1
         else:
-            grid = [
-                [
+            level_map = CIRCUIT_2
+
+        # Convertit chaque lettre en un objet RoadTile.
+        terrain_types = {
+            "R": "road",
+            "G": "grass",
+            "I": "ice",
+            "T": "terre",
+            "F": "fence"
+        }
+
+        grid = []
+        for row_idx, row_str in enumerate(level_map):
+            row_tiles = []
+            for col_idx, symbol in enumerate(row_str):
+                tile_type = terrain_types[symbol]
+                row_tiles.append(
                     RoadTile(
                         col=col_idx,
                         row=row_idx,
-                        tile_type="grass"
+                        tile_type=tile_type
                     )
-                    for col_idx in range(GRID_COLS)
-                ]
-                for row_idx in range(GRID_ROWS)
-            ]
+                )
+            grid.append(row_tiles)
 
         # Création du circuit.
         self.circuit = Circuit(grid=grid)
@@ -262,10 +266,10 @@ class GameModel:
             car_row
         )
 
-        # Retour à la dernière position sûre si nécessaire.
+        # Une barrière ou le vide n'est pas traversable.
         if (
             current_tile is None
-            or current_tile.tile_type == "empty"
+            or current_tile.tile_type in ("empty", "fence")
         ):
             car.x, car.y = self.last_safe_positions[player]
             car.speed = 0.0
@@ -299,10 +303,11 @@ class GameModel:
             new_row
         )
 
-        # Vérifie que la nouvelle case est autorisée.
+        # Collision avec une barrière ou sortie de la carte.
+        # Chaque voiture revient à sa propre position sûre.
         if (
             new_tile is None
-            or new_tile.tile_type == "empty"
+            or new_tile.tile_type in ("empty", "fence")
         ):
             car.x, car.y = self.last_safe_positions[player]
             car.speed = 0.0
@@ -310,7 +315,7 @@ class GameModel:
 
         new_position = (new_col, new_row)
 
-        # NOUVEAU : vérifie les cases de boost.
+        # Vérifie les cases de boost.
         # Le boost est appliqué à l'entrée sur la case.
         if self.special_blocks is not None:
             self.special_blocks.update_player(
